@@ -22,6 +22,9 @@ public abstract class GameObject{
 
     protected abstract void display(List<Node> nodes);
 
+    @Override
+    public abstract int hashCode();
+
     public int getX(){
         return x;
     }

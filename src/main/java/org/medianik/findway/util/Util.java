@@ -16,19 +16,21 @@ public class Util{
         if(method.isAnnotationPresent(Event.Priority.class)){
             var event = method.getAnnotation(Event.Priority.class);
             if(event.value() == priority){
-                App.log.log(Level.TRACE,
+                App.logger.log(Level.TRACE,
                         method.getName() + "() on " + handler.getClass().getSimpleName() + " was called");
                 method.invoke(handler, args);
             }
         }else if(priority == MID_PROCESSING){
-            App.log.log(Level.TRACE,
+            App.logger.log(Level.TRACE,
                     method.getName() + "() on " + handler.getClass().getSimpleName() + " was called");
             method.invoke(handler, args);
         }
     }
+
     public static boolean inEpsilonRange(int toCheck, int point, int delta){
         return point - delta <= toCheck && toCheck <= point + delta;
     }
+
     public static boolean inRange(int toCheck, int leftBorder, int rightBorder){
         return leftBorder <= toCheck && toCheck >= rightBorder;
     }
@@ -39,5 +41,9 @@ public class Util{
 
     public static int linkYToCenter(double y){
         return (int) (y - App.getInstance().height()/2);
+    }
+
+    public static boolean isPresent(Object o){
+        return o != null;
     }
 }
