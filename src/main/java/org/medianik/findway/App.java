@@ -20,7 +20,6 @@ import java.io.InputStream;
 
 import static org.medianik.findway.util.Constants.GLOBAL_OFFSET;
 
-
 /**
  * JavaFX App
  */
@@ -29,19 +28,17 @@ public class App extends Application{
     public static final Logger logger = Logger.getLogger(App.class);
     private static App instance;
 
-    static{
-        logger.setLevel(Level.DEBUG);
-    }
-
     private final Pane pane;
     private final Scene scene;
     private final Manager manager;
 
     public App(){
+        App.logger.log(Level.INFO, "Creating new instance of " + App.class.getName());
         pane = new StackPane();
         scene = new Scene(pane, calculateWidth(), calculateHeight());
         instance = this;
         manager = new Manager(this);
+        App.logger.log(Level.INFO, "Completed creating new instance of " + App.class.getName());
     }
 
     private double calculateWidth(){
@@ -56,6 +53,7 @@ public class App extends Application{
 
     @Override
     public void start(Stage stage){
+        App.logger.log(Level.INFO, "Starting an application.");
         stage.setScene(scene);
         stage.show();
         stage.setResizable(false);
@@ -65,12 +63,14 @@ public class App extends Application{
         setupIcon(stage);
 
         manager.init();
+        App.logger.log(Level.INFO, "Application has started.");
     }
 
     private void setupIcon(Stage stage){
         InputStream inputIcon = getClass().getResourceAsStream("/icon.png");
         Image icon = new Image(inputIcon);
         stage.getIcons().add(icon);
+        App.logger.log(Level.INFO, "Icon has set up.");
     }
 
     public <T extends Event> void addEventHandler(EventType<T> event, EventHandler<? super T> eventHandler){
@@ -93,12 +93,28 @@ public class App extends Application{
         return pane.getScene().getHeight();
     }
 
+    public Manager getManager(){
+        return manager;
+    }
+
+    @Override
+    public String toString(){
+        return "App{" +
+                "pane=" + pane +
+                ", scene=" + scene +
+                ", manager=" + manager +
+                '}';
+    }
+
     public static App getInstance(){
         return instance;
     }
 
     public static void main(String... args){
+        if(args.length != 0)
+            logger.setLevel(Level.toLevel(args[0], Level.DEBUG));
+        else
+            logger.setLevel(Level.DEBUG);
         launch(App.class);
     }
-
 }

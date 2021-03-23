@@ -3,6 +3,7 @@ package org.medianik.findway;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.event.ActionEvent;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
@@ -11,6 +12,9 @@ import org.apache.log4j.Level;
 import org.jetbrains.annotations.NotNull;
 import org.medianik.findway.annotaion.Event;
 import org.medianik.findway.annotaion.EventPriority;
+import org.medianik.findway.astar.AStar;
+import org.medianik.findway.astar.Grid;
+import org.medianik.findway.exception.EnvironmentHolder;
 import org.medianik.findway.gameobject.*;
 
 import java.lang.reflect.InvocationTargetException;
@@ -20,19 +24,22 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.medianik.findway.util.Constants.MILLIS_BETWEEN_TICKS;
-import static org.medianik.findway.util.Constants.NUMBER_OF_CELLS;
+import static org.medianik.findway.util.Constants.*;
 import static org.medianik.findway.util.Util.invokeIfNeeded;
 
 public class Manager{
 
+    private final Grid grid;
     private final Set<GameObject> gameObjects;
     private final Set<MouseEvent> mouseEvents;
     private final Set<KeyEvent> keyEvents;
     private final App app;
+    private Timeline astarAlgorithm = null;
+    private Timeline main;
     private int tick;
 
     public Manager(App app){
+        grid = new Grid(app);
         gameObjects = ConcurrentHashMap.newKeySet(NUMBER_OF_CELLS*NUMBER_OF_CELLS);
         mouseEvents = ConcurrentHashMap.newKeySet();
         keyEvents = ConcurrentHashMap.newKeySet();
@@ -40,21 +47,70 @@ public class Manager{
     }
 
     public void init(){
-        initGrid();
+        App.logger.log(Level.INFO, "Initializing " + Manager.class.getName());
+        tick = 0;
+
+        grid.init(gameObjects);
+        initButtons();
+
         app.addEventHandler(MouseEvent.ANY, this::handleEvent);
         app.addEventHandler(KeyEvent.ANY, this::handleEvent);
 
-        tick = 0;
+        main = new Timeline(new KeyFrame(Duration.millis(MILLIS_BETWEEN_TICKS), this::execute));
+        main.setCycleCount(Animation.INDEFINITE);
+        main.play();
 
-        Timeline tl = new Timeline(new KeyFrame(Duration.millis(MILLIS_BETWEEN_TICKS), e -> execute()));
-        tl.setCycleCount(Animation.INDEFINITE);
-        tl.play();
+        App.logger.log(Level.INFO, "Completed initializing of " + Manager.class.getName());
     }
 
-    private void initGrid(){
-        for(int x = -NUMBER_OF_CELLS/2; x <= NUMBER_OF_CELLS/2; x++)
-            for(int y = -NUMBER_OF_CELLS/2; y <= NUMBER_OF_CELLS/2; y++)
-                gameObjects.add(new Cell(x, y, app.getNodes()));
+    private void initButtons(){
+        var startButton = new ButtonWrapper(
+                (int) (-app.width()/2 + GLOBAL_OFFSET*10),
+                GLOBAL_OFFSET/2 + BUTTON_MIN_HEIGHT/2,
+                0,
+                START_BUTTON_TEXT,
+                this::runAStar,
+                app.getNodes()
+        );
+        var resetButton = new ButtonWrapper(
+                (int) (-app.width()/2 + GLOBAL_OFFSET*10),
+                -GLOBAL_OFFSET/2 - BUTTON_MIN_HEIGHT/2,
+                0,
+                RESET_BUTTON_TEXT,
+                this::reset,
+                app.getNodes()
+        );
+        gameObjects.add(startButton);
+        gameObjects.add(resetButton);
+    }
+
+    private void runAStar(ActionEvent ignored){
+        if(astarAlgorithm == null){
+            astarAlgorithm = new Timeline(new KeyFrame(Duration.millis(DEFAULT_START_DELAY), e -> new AStar(grid).run(DEFAULT_PROCESS_DELAY)));
+            astarAlgorithm.play();
+        }
+    }
+
+    private void reset(ActionEvent event){
+        App.logger.log(Level.INFO, "Starting resetting of " + Manager.class.getName());
+        if(astarAlgorithm != null)
+            astarAlgorithm.stop();
+        astarAlgorithm = null;
+        grid.clear();
+
+        for(var go : gameObjects)
+            go.destroy(tick, app.getNodes());
+        gameObjects.clear();
+        mouseEvents.clear();
+        keyEvents.clear();
+
+        app.removeEventHandler(MouseEvent.ANY, this::handleEvent);
+        app.removeEventHandler(KeyEvent.ANY, this::handleEvent);
+
+        main.stop();
+        App.logger.log(Level.INFO, "Completed resetting of " + Manager.class.getName());
+
+        init();
     }
 
     private void handleEvent(javafx.event.Event event){
@@ -64,14 +120,17 @@ public class Manager{
             this.keyEvents.add((KeyEvent) event);
     }
 
-    public void execute(){
+    public void execute(ActionEvent ignored){
         App.logger.log(Level.TRACE, "Starting tick " + ++tick);
 
         for(var priority : EventPriority.values()){
             try {
                 process(gameObjects, priority);
             }catch(ReflectiveOperationException e){
-                assert false : "This should not happen.";
+                App.logger.log(Level.FATAL, "Unexpected fatal ERROR happened. Environment holder is passed.");
+                App.logger.log(Level.ERROR, new EnvironmentHolder(this));
+                e.printStackTrace();
+                System.exit(1);
             }
         }
 
@@ -87,10 +146,10 @@ public class Manager{
                 handleMouse(priority, (MouseHandler) go);
             if(!keyEvents.isEmpty() && go instanceof KeyHandler)
                 handleKey(priority, (KeyHandler) go);
-            if(go instanceof TickHandler)
-                handleTick(priority, (TickHandler) go);
             if(go instanceof CustomEventHandler)
                 handleCustomEvents(priority, (CustomEventHandler) go);
+            if(go instanceof TickHandler)
+                handleTick(priority, (TickHandler) go);
         }
     }
 
@@ -119,5 +178,20 @@ public class Manager{
         var methods = Arrays.stream(handler.getClass().getDeclaredMethods()).filter((e) -> e.isAnnotationPresent(Event.class)).toArray(Method[]::new);
         for(var method : methods)
             invokeIfNeeded(priority, handler, method, tick);
+    }
+
+    @Override
+    public String toString(){
+        return "Manager{" +
+                "grid=" + grid +
+                ", gameObjects=" + gameObjects +
+                ", mouseEvents=" + mouseEvents +
+                ", keyEvents=" + keyEvents +
+                ", tick=" + tick +
+                '}';
+    }
+
+    public int getTick(){
+        return tick;
     }
 }

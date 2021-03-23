@@ -4,13 +4,13 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import org.apache.log4j.Level;
 import org.junit.jupiter.api.Test;
-import org.medianik.findway.annotaion.Event;
 import org.medianik.findway.annotaion.EventPriority;
-import org.medianik.findway.gameobject.*;
+import org.medianik.findway.gameobject.Cell;
+import org.medianik.findway.gameobject.GameObject;
+import org.medianik.findway.gameobject.MouseHandler;
+import org.medianik.findway.gameobject.TickHandler;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.Arrays;
 
 import static org.medianik.findway.util.Util.invokeIfNeeded;
 
@@ -23,7 +23,7 @@ public class EventTest{
     @Test
     public void testEventPriority() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException{
         App.logger.log(Level.INFO, "Starting test testEventPriority.");
-        var gos = new GameObject[]{new Cell(0, 0, new Pane().getChildren())};
+        var gos = new GameObject[]{new Cell(0, 0, 0, new Pane().getChildren())};
 
         for(var priority : EventPriority.values())
             process(gos, priority);
@@ -48,13 +48,5 @@ public class EventTest{
     private void handleClick(EventPriority priority, MouseHandler handler) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException{
         var method = handler.getClass().getMethod("handleMouse", MouseEvent.class);
         invokeIfNeeded(priority, handler, method, (MouseEvent) null);
-    }
-
-    @Test
-    public void testCustomEvents() throws InvocationTargetException, IllegalAccessException{
-        EventObject eventHandler = new EventObject(0, 0, new Pane().getChildren());
-        for(var m : Arrays.stream(eventHandler.getClass().getDeclaredMethods()).filter(m -> m.isAnnotationPresent(Event.class)).toArray(Method[]::new)){
-            m.invoke(eventHandler, 0);
-        }
     }
 }

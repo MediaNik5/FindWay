@@ -7,7 +7,9 @@ public enum CellType{
     START(Paint.valueOf("#3c3345")),
     END(Color.BLACK),
     WALL(Paint.valueOf("#454247")),
-    EMPTY(Color.GRAY);
+    EMPTY(Color.GRAY),
+    COLORED(Color.RED),
+    PATH(Color.AQUAMARINE);
 
     private final Paint paint;
 

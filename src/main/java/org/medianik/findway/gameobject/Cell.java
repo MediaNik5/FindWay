@@ -4,6 +4,7 @@ import javafx.beans.Observable;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.shape.Rectangle;
@@ -27,13 +28,19 @@ public class Cell extends GameObject implements MouseHandler{
 
     private static final AtomicReference<CellType> lastType = new AtomicReference<>(null);
 
-    private final SimpleObjectProperty<CellType> type = new SimpleObjectProperty<>();
+    private final SimpleObjectProperty<CellType> type;
     private final ContextMenu contextMenu;
-    private Rectangle rectangle;
+    private final Rectangle rectangle;
+    private Label cost;
     private boolean isBig;
 
-    public Cell(int x, int y, List<Node> nodes){
-        super(x, y, nodes);
+    public Cell(int x, int y, int startingTick, List<Node> nodes){
+        super(x, y, startingTick);
+        rectangle = new Rectangle(CELL_SIZE, CELL_SIZE);
+        display(nodes);
+        isBig = false;
+
+        type = new SimpleObjectProperty<>();
         type.addListener(this::onTypeChange);
         type.set(CellType.EMPTY);
 
@@ -77,11 +84,14 @@ public class Cell extends GameObject implements MouseHandler{
 
     @Override
     protected void display(List<Node> nodes){
-        rectangle = new Rectangle(CELL_SIZE, CELL_SIZE);
         rectangle.setTranslateX(getX());
         rectangle.setTranslateY(getY());
         nodes.add(rectangle);
-        isBig = false;
+    }
+
+    @Override
+    public int hashCode(){
+        return Objects.hash(getX(), getY());
     }
 
     @Override
@@ -92,6 +102,21 @@ public class Cell extends GameObject implements MouseHandler{
     @Override
     public int getY(){
         return super.getY()*(CELL_SIZE + GRID_OFFSET);
+    }
+
+    @Override
+    public void destroy(int tick, List<Node> nodes){
+        super.destroy(tick, nodes);
+        nodes.remove(rectangle);
+        nodes.remove(cost);
+    }
+
+    public int getGridX(){
+        return super.getX();
+    }
+
+    public int getGridY(){
+        return super.getY();
     }
 
     @Override
@@ -119,6 +144,7 @@ public class Cell extends GameObject implements MouseHandler{
             }
         }
     }
+
     private boolean isMouseOver(double x, double y){
         x = x - App.getInstance().width()/2;
         y = y - App.getInstance().height()/2;
@@ -126,12 +152,14 @@ public class Cell extends GameObject implements MouseHandler{
                 inEpsilonRange((int) y, getY(), CELL_SIZE/2);
     }
 
-    @Override
-    public String toString(){
-        return "Cell{" +
-                "x=" + x +
-                ", y=" + y +
-                '}';
+    public void highlight(){
+        if(this.type.get() != CellType.END)
+            this.type.set(CellType.COLORED);
+    }
+
+    public void markAsPath(){
+        if(this.type.get() != CellType.END)
+            this.type.set(CellType.PATH);
     }
 
     @Override
@@ -146,8 +174,29 @@ public class Cell extends GameObject implements MouseHandler{
     }
 
     @Override
-    public int hashCode(){
-        return Objects.hash(getX(), getY());
+    public String toString(){
+        return "Cell{" +
+                "x=" + x +
+                ", y=" + y +
+                '}';
+    }
+
+    public CellType getType(){
+        return type.get();
+    }
+
+    public void resetType(){
+        type.set(CellType.EMPTY);
+    }
+
+    public void setCost(int newCost){
+        if(cost == null){
+            cost = new Label(Integer.toString(newCost));
+            cost.setTranslateX(rectangle.getTranslateX());
+            cost.setTranslateY(rectangle.getTranslateY());
+            App.getInstance().getNodes().add(cost);
+        }else
+            cost.setText(Integer.toString(newCost));
     }
 
     public static Cell getStartCell(){
