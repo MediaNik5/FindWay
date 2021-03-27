@@ -1,6 +1,7 @@
 package org.medianik.findway.util;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.PriorityQueue;
 
 /**
@@ -15,16 +16,21 @@ import java.util.PriorityQueue;
 public class ExplicitPriorityQueue<T>{
 
     private final PriorityQueue<IntIntObjTriple<T>> queue;
+    private final DummyKey dummyKey = new DummyKey();
+    private final HashMap<T, IntIntObjTriple<T>> map;
 
     public ExplicitPriorityQueue(){
         Comparator<IntIntObjTriple<T>> comparator = Comparator.comparingInt(IntIntObjTriple::getKey);
         comparator = comparator.thenComparingInt(IntIntObjTriple::getAddon);
 
         queue = new PriorityQueue<>(comparator);
+        map = new HashMap<>();
     }
 
     public boolean add(int key, int then, T value){
-        return queue.add(new IntIntObjTriple<>(key, then, value));
+        var newItem = new IntIntObjTriple<>(key, then, value);
+        map.put(value, newItem);
+        return queue.add(newItem);
     }
 
     public boolean isEmpty(){
@@ -32,7 +38,18 @@ public class ExplicitPriorityQueue<T>{
     }
 
     public T poll(){
-        return queue.poll().getValue();
+        T out = queue.poll().getValue();
+
+        prepareDummy(out);
+        IntIntObjTriple<T> t;
+        map.remove(dummyKey);
+
+        return out;
+    }
+
+    private void prepareDummy(T out){
+        dummyKey.setEqualTo(out);
+        dummyKey.setHash(out.hashCode());
     }
 
     public void clear(){
@@ -49,14 +66,35 @@ public class ExplicitPriorityQueue<T>{
      * @return true if replaced value, false if added new one.
      */
     public boolean replaceValue(int key, int then, T value){
-        for(var triple : queue){
-            if(triple.getValue().equals(value)){
-                triple.setKey(key);
-                triple.setAddon(then);
-                return true;
-            }
+        prepareDummy(value);
+        IntIntObjTriple<T> t;
+        if((t = map.get(dummyKey)) != null){
+            t.setKey(key);
+            t.setAddon(then);
+            return true;
         }
         add(key, then, value);
         return false;
     }
+
+    private static class DummyKey{
+        private int hash;
+        private Object equalTo;
+
+        public void setEqualTo(Object equalTo){
+            this.equalTo = equalTo;
+        }
+        public void setHash(int hash){
+            this.hash = hash;
+        }
+        @Override
+        public boolean equals(Object o){
+            return o == equalTo;
+        }
+        @Override
+        public int hashCode(){
+            return hash;
+        }
+    }
+
 }

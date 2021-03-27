@@ -8,7 +8,7 @@ public class Constants{
     public static final int TICKS_PER_SECOND = 60;
     public static final double MILLIS_BETWEEN_TICKS = 1000./TICKS_PER_SECOND;
 
-    public static final int DEFAULT_PROCESS_DELAY = 1;
+    public static final int DEFAULT_PROCESS_DELAY = 0;//64
     public static final int DEFAULT_START_DELAY = 50;
 
     public static final int GLOBAL_OFFSET = 10;
